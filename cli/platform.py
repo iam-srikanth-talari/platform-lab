@@ -1,20 +1,25 @@
 import sys
 import subprocess
-import yaml
 from pathlib import Path
-# from kubernetes import deploy_to_kubernetes, kubernetes_status
-# from cli.kubernetes import deploy_to_kubernetes, kubernetes_status
-from .kubernetes import deploy_to_kubernetes, kubernetes_status
 
+import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CLI_DIR = Path(__file__).resolve().parent
+
+sys.path.insert(0, str(CLI_DIR))
+
+from kubernetes import deploy_to_kubernetes, kubernetes_status
+
 TERRAFORM_DIR = PROJECT_ROOT / "terraform"
 
+# from kubernetes import deploy_to_kubernetes, kubernetes_status
+# from cli.kubernetes import deploy_to_kubernetes, kubernetes_status
+# from .kubernetes import deploy_to_kubernetes, kubernetes_status
 
 def load_config(filename):
     with open(filename, "r") as file:
         return yaml.safe_load(file)
-
 
 def validate_config(config):
     required_sections = [
@@ -146,7 +151,33 @@ def execute(command, config):
 
     elif command == "create":
         terraform_init()
-        terraform_plan(config)
+
+        print()
+        print("======================================")
+        print("       PLATFORM DEPLOYMENT")
+        print("======================================")
+
+        print()
+        print("[1/4] Provisioning infrastructure...")
+        terraform_apply(config)
+
+        print()
+        print("[2/4] Generating Kubernetes manifests...")
+
+        print("Kubernetes manifests will be generated during deployment.")
+
+        print()
+        print("[3/4] Deploying application...")
+        deploy_to_kubernetes(config)
+
+        print()
+        print("[4/4] Verifying deployment...")
+        kubernetes_status(config)
+
+        print()
+        print("======================================")
+        print("       DEPLOYMENT COMPLETED")
+        print("======================================")
 
     elif command == "deploy":
         deploy_to_kubernetes(config)
