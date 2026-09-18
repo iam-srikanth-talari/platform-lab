@@ -1,0 +1,15 @@
+application:
+  name: demo-app
+  environment: dev
+
+infrastructure:
+  cloud: aws
+  region: ap-south-2
+  instance_type: t3.micro
+
+kubernetes:
+  replicas: 3
+  port: 8000
+
+deployment:
+  image: talarisrikanth464/python-sample-app-demo:v1
