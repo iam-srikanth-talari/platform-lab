@@ -21,6 +21,24 @@ def load_config(filename):
     with open(filename, "r") as file:
         return yaml.safe_load(file)
 
+def load_environment_config(config):
+    environment = config["application"]["environment"]
+
+    environment_file = (
+        PROJECT_ROOT
+        / "config"
+        / "environments"
+        / f"{environment}.yaml"
+    )
+
+    if not environment_file.exists():
+        raise ValueError(
+            f"Environment configuration not found: {environment}"
+        )
+
+    with open(environment_file, "r") as file:
+        return yaml.safe_load(file)
+
 def validate_config(config):
     required_sections = [
         "application",
@@ -198,7 +216,6 @@ def execute(command, config):
         print("  k8s-status")
         sys.exit(1)
 
-
 def main():
     if len(sys.argv) != 3:
         print("Usage: python cli/platform.py <command> <config.yaml>")
@@ -209,19 +226,69 @@ def main():
         print("  apply")
         print("  destroy")
         print("  status")
+        print("  deploy")
+        print("  k8s-status")
         sys.exit(1)
 
     command = sys.argv[1]
     config_file = sys.argv[2]
 
-    config = load_config(config_file)
-
     try:
+        config = load_config(config_file)
+
+        environment_config = load_environment_config(config)
+
+        config["infrastructure"]["instance_type"] = (
+            environment_config["infrastructure"]["instance_type"]
+        )
+
+        config["kubernetes"]["replicas"] = (
+            environment_config["kubernetes"]["replicas"]
+        )
+
         execute(command, config)
+
     except ValueError as error:
         print(f"Configuration error: {error}")
         sys.exit(1)
 
+# def main():
+#     if len(sys.argv) != 3:
+#         print("Usage: python cli/platform.py <command> <config.yaml>")
+#         print()
+#         print("Commands:")
+#         print("  create")
+#         print("  plan")
+#         print("  apply")
+#         print("  destroy")
+#         print("  status")
+#         sys.exit(1)
 
-if __name__ == "__main__":
-    main()
+#     command = sys.argv[1]
+#     config_file = sys.argv[2]
+
+#     # config = load_config(config_file)
+
+#     # try:
+#     #     execute(command, config)
+#     # except ValueError as error:
+#     #     print(f"Configuration error: {error}")
+#     #     sys.exit(1)
+#     config = load_config(config_file)
+
+#     try:
+#         environment_config = load_environment_config(config)
+
+#         config["infrastructure"]["instance_type"] = (
+#             environment_config["infrastructure"]["instance_type"]
+#         )
+
+#         config["kubernetes"]["replicas"] = (
+#             environment_config["kubernetes"]["replicas"]
+#         )
+
+#         execute(command, config)
+
+
+# if __name__ == "__main__":
+#     main()

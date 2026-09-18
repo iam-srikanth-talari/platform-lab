@@ -1,0 +1,7 @@
+environment: staging
+
+infrastructure:
+  instance_type: t3.small
+
+kubernetes:
+  replicas: 2

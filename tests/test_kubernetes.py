@@ -38,7 +38,8 @@ def test_generated_deployment():
 
     assert deployment["kind"] == "Deployment"
     assert deployment["metadata"]["name"] == "demo-app"
-    assert deployment["spec"]["replicas"] == 3
+    # assert deployment["spec"]["replicas"] == 3
+    assert deployment["spec"]["replicas"] == config["kubernetes"]["replicas"]
 
 
 def test_generated_service():
