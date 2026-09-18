@@ -2,7 +2,9 @@ import sys
 import subprocess
 import yaml
 from pathlib import Path
-from kubernetes import deploy_to_kubernetes, kubernetes_status
+# from kubernetes import deploy_to_kubernetes, kubernetes_status
+# from cli.kubernetes import deploy_to_kubernetes, kubernetes_status
+from .kubernetes import deploy_to_kubernetes, kubernetes_status
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
