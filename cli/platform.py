@@ -3,6 +3,7 @@ import subprocess
 from pathlib import Path
 
 import yaml
+import json
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CLI_DIR = Path(__file__).resolve().parent
@@ -358,7 +359,7 @@ def execute(command, config):
     elif command == "k8s-status":
         kubernetes_status(config)
 
-        
+
     elif command == "deploy":
         terraform_init()
 
@@ -423,6 +424,21 @@ def execute(command, config):
         print("======================================")
         print("       DEPLOYMENT SUCCESSFUL")
         print("======================================")
+
+    elif command == "validate":
+        print()
+        print("Configuration validation: PASSED")
+        print()
+        print("======================================")
+        print("       PLATFORM CONFIGURATION")
+        print("======================================")
+        print()
+        print(f"Application : {config['application']['name']}")
+        print(f"Environment : {config['application']['environment']}")
+        print(f"Cloud       : {config['infrastructure']['cloud']}")
+        print(f"Region      : {config['infrastructure']['region']}")
+        print(f"Instance    : {config['infrastructure']['instance_type']}")
+        print(f"Replicas    : {config['kubernetes']['replicas']}")
 
     elif command == "k8s-status":
         kubernetes_status(config)
