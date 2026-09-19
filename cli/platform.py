@@ -77,6 +77,17 @@ def validate_config(config):
         raise ValueError("Kubernetes replicas must be at least 1")
 
     print("Configuration validation: PASSED")
+    print()
+    print("======================================")
+    print("       PLATFORM CONFIGURATION")
+    print("======================================")
+    print()
+    print(f"Application : {config['application']['name']}")
+    print(f"Environment : {config['application']['environment']}")
+    print(f"Cloud       : {config['infrastructure']['cloud']}")
+    print(f"Region      : {config['infrastructure']['region']}")
+    print(f"Instance    : {config['infrastructure']['instance_type']}")
+    print(f"Replicas    : {config['kubernetes']['replicas']}")
 
 
 def run_command(command):
@@ -112,6 +123,19 @@ def terraform_init():
     print("Initializing Terraform...")
     run_command(["terraform", "init"])
 
+def terraform_workspace(environment):
+    print()
+    print(f"Selecting Terraform workspace: {environment}")
+
+    result = subprocess.run(
+        ["terraform", "workspace", "select", environment],
+        cwd=TERRAFORM_DIR,
+        text=True
+    )
+
+    if result.returncode != 0:
+        print(f"Workspace '{environment}' does not exist.")
+        sys.exit(1)
 
 def terraform_plan(config):
     print()
@@ -133,12 +157,35 @@ def terraform_apply(config):
 
 
 def terraform_destroy(config):
+    environment = config["application"]["environment"]
+
+    print()
+    print("======================================")
+    print("       DESTRUCTIVE OPERATION")
+    print("======================================")
+    print()
+    print(f"Environment : {environment}")
+    print(f"Application : {config['application']['name']}")
+    print()
+
+    confirmation = input(
+        f"Type '{environment}' to confirm destruction: "
+    )
+
+    if confirmation != environment:
+        print()
+        print("Destruction cancelled.")
+        return
+
     print()
     print("Destroying Terraform infrastructure...")
 
     run_command(
-        ["terraform", "destroy", "-auto-approve"]
-        + terraform_variables(config)
+        [
+            "terraform",
+            "destroy",
+            "-auto-approve"
+        ] + terraform_variables(config)
     )
 
 
@@ -152,16 +199,22 @@ def terraform_status():
 def execute(command, config):
     validate_config(config)
 
+    # if command == "plan":
+    #     terraform_init()
+    #     terraform_plan(config)
     if command == "plan":
         terraform_init()
+        terraform_workspace(config["application"]["environment"])
         terraform_plan(config)
 
     elif command == "apply":
         terraform_init()
+        terraform_workspace(config["application"]["environment"])
         terraform_apply(config)
 
     elif command == "destroy":
         terraform_init()
+        terraform_workspace(config["application"]["environment"])
         terraform_destroy(config)
 
     elif command == "status":
@@ -198,7 +251,36 @@ def execute(command, config):
         print("======================================")
 
     elif command == "deploy":
+        terraform_init()
+
+        terraform_workspace(
+            config["application"]["environment"]
+        )
+
+        print()
+        print("======================================")
+        print("       PLATFORM DEPLOYMENT")
+        print("======================================")
+
+        print()
+        print("[1/4] Provisioning infrastructure...")
+        terraform_apply(config)
+
+        print()
+        print("[2/4] Deploying application...")
         deploy_to_kubernetes(config)
+
+        print()
+        print("[3/4] Verifying Kubernetes deployment...")
+        kubernetes_status(config)
+
+        print()
+        print("[4/4] Deployment completed.")
+
+        print()
+        print("======================================")
+        print("       DEPLOYMENT SUCCESSFUL")
+        print("======================================")
 
     elif command == "k8s-status":
         kubernetes_status(config)
@@ -217,8 +299,8 @@ def execute(command, config):
         sys.exit(1)
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python cli/platform.py <command> <config.yaml>")
+    if len(sys.argv) != 5 or sys.argv[3] != "--env":
+        print("Usage: python cli/platform.py <command> <config.yaml> --env <environment>")
         print()
         print("Commands:")
         print("  create")
@@ -232,9 +314,12 @@ def main():
 
     command = sys.argv[1]
     config_file = sys.argv[2]
+    environment = sys.argv[4]
 
     try:
         config = load_config(config_file)
+
+        config["application"]["environment"] = environment
 
         environment_config = load_environment_config(config)
 
@@ -252,43 +337,5 @@ def main():
         print(f"Configuration error: {error}")
         sys.exit(1)
 
-# def main():
-#     if len(sys.argv) != 3:
-#         print("Usage: python cli/platform.py <command> <config.yaml>")
-#         print()
-#         print("Commands:")
-#         print("  create")
-#         print("  plan")
-#         print("  apply")
-#         print("  destroy")
-#         print("  status")
-#         sys.exit(1)
-
-#     command = sys.argv[1]
-#     config_file = sys.argv[2]
-
-#     # config = load_config(config_file)
-
-#     # try:
-#     #     execute(command, config)
-#     # except ValueError as error:
-#     #     print(f"Configuration error: {error}")
-#     #     sys.exit(1)
-#     config = load_config(config_file)
-
-#     try:
-#         environment_config = load_environment_config(config)
-
-#         config["infrastructure"]["instance_type"] = (
-#             environment_config["infrastructure"]["instance_type"]
-#         )
-
-#         config["kubernetes"]["replicas"] = (
-#             environment_config["kubernetes"]["replicas"]
-#         )
-
-#         execute(command, config)
-
-
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
