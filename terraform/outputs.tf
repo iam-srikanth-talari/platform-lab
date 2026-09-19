@@ -13,3 +13,6 @@ output "instance_id" {
 output "instance_private_ip" {
   value = aws_instance.platform_instance.private_ip
 }
+output "instance_public_ip" {
+  value = aws_instance.platform_instance.public_ip
+}

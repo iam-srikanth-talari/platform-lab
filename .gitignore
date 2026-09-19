@@ -17,3 +17,7 @@ Thumbs.db
 # Generated Kubernetes manifests
 kubernetes/deployment.generated.yaml
 kubernetes/service.generated.yaml
+terraform/terraform.tfvars
+terraform/*.tfvars
+terraform/*.tfvars.json
+ansible/inventory.ini

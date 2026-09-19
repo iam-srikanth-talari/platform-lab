@@ -1,0 +1,23 @@
+---
+- name: Verify platform server
+  hosts: platform
+  become: true
+
+  tasks:
+    - name: Check Docker service
+      ansible.builtin.command: systemctl is-active docker
+      register: docker_status
+      changed_when: false
+
+    - name: Show Docker status
+      ansible.builtin.debug:
+        msg: "Docker status: {{ docker_status.stdout }}"
+
+    - name: Check application directory
+      ansible.builtin.stat:
+        path: /opt/platform-app
+      register: app_dir
+
+    - name: Show application directory status
+      ansible.builtin.debug:
+        msg: "Application directory exists: {{ app_dir.stat.exists }}"

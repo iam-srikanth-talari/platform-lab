@@ -34,12 +34,24 @@ resource "aws_subnet" "platform_subnet" {
   }
 }
 
+resource "aws_key_pair" "platform_key" {
+  key_name   = "${var.application_name}-${var.environment}-key"
+  public_key = var.ssh_public_key
+}
+
 resource "aws_instance" "platform_instance" {
-  ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = var.instance_type
+  ami           = data.aws_ami.amazon_linux.id
+  instance_type = var.instance_type
+
+  subnet_id              = aws_subnet.platform_subnet.id
   vpc_security_group_ids = [aws_security_group.platform_sg.id]
 
-  subnet_id = aws_subnet.platform_subnet.id
+  key_name = aws_key_pair.platform_key.key_name
+
+  root_block_device {
+    volume_size = 10
+    volume_type = "gp3"
+  }
 
   tags = {
     Name        = "${var.application_name}-${var.environment}"
@@ -101,6 +113,14 @@ resource "aws_security_group" "platform_sg" {
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.ssh_allowed_cidr]
   }
 
   egress {

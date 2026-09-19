@@ -1,6 +1,7 @@
 from pathlib import Path
 import subprocess
 import yaml
+import json
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -140,6 +141,154 @@ def deploy_to_kubernetes(config):
     node_port = result.stdout.strip()
 
     print(f"http://{minikube_ip}:{node_port}")
+
+def kubernetes_pod_health(config):
+
+    app_name = config["application"]["name"]
+
+    print()
+    print("Checking pod health...")
+
+    result = subprocess.run(
+        [
+            "kubectl",
+            "get",
+            "pods",
+            "-l",
+            f"app={app_name}",
+            "-o",
+            "json"
+        ],
+        capture_output=True,
+        text=True
+    )
+
+    if result.returncode != 0:
+        print("Pod Health : FAILED")
+        return False
+
+    data = json.loads(result.stdout)
+    pods = data.get("items", [])
+
+    if not pods:
+        print("Pod Health : FAILED")
+        print("Reason     : No pods found")
+        return False
+
+    healthy = True
+
+    for pod in pods:
+
+        pod_name = pod["metadata"]["name"]
+        phase = pod["status"].get("phase", "Unknown")
+
+        container_statuses = pod["status"].get(
+            "containerStatuses",
+            []
+        )
+
+        reason = "Unknown"
+        message = ""
+
+        if container_statuses:
+
+            container = container_statuses[0]
+
+            ready = container.get("ready", False)
+            restart_count = container.get("restartCount", 0)
+
+            waiting = container.get("state", {}).get("waiting")
+
+            if waiting:
+                reason = waiting.get("reason", "Unknown")
+                message = waiting.get("message", "")
+            else:
+                reason = container.get(
+                    "state", {}
+                ).get(
+                    "running", {}
+                ).get(
+                    "reason", "Running"
+                )
+
+        else:
+            ready = False
+            restart_count = 0
+
+        print()
+        print(f"Pod        : {pod_name}")
+        print(f"Status     : {phase}")
+        print(f"Ready      : {ready}")
+        print(f"Restarts   : {restart_count}")
+        print(f"Reason     : {reason}")
+
+        if message:
+            print(f"Message    : {message}")
+
+        if phase != "Running" or not ready:
+            healthy = False
+
+    print()
+
+    if healthy:
+        print("Pod Health : HEALTHY")
+    else:
+        print("Pod Health : UNHEALTHY")
+
+    return healthy
+
+def kubernetes_service_health(config):
+
+    app_name = config["application"]["name"]
+    service_name = f"{app_name}-service"
+
+    print()
+    print("Checking service health...")
+
+    result = subprocess.run(
+        [
+            "kubectl",
+            "get",
+            "service",
+            service_name,
+            "-o",
+            "json"
+        ],
+        capture_output=True,
+        text=True
+    )
+
+    if result.returncode != 0:
+        print("Service Health : FAILED")
+        print("Reason         : Service not found")
+        return False
+
+    data = json.loads(result.stdout)
+
+    service_type = data["spec"].get("type", "Unknown")
+    ports = data["spec"].get("ports", [])
+
+    if not ports:
+        print("Service Health : FAILED")
+        print("Reason         : No ports configured")
+        return False
+
+    node_port = ports[0].get("nodePort")
+
+    print()
+    print(f"Service        : {service_name}")
+    print(f"Type           : {service_type}")
+    print(f"NodePort       : {node_port}")
+
+    if service_type != "NodePort" or not node_port:
+        print()
+        print("Service Health : UNHEALTHY")
+        return False
+
+    print()
+    print("Service Health : HEALTHY")
+
+    return True
 
 def kubernetes_status(config):
     app_name = config["application"]["name"]

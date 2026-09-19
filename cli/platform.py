@@ -9,9 +9,17 @@ CLI_DIR = Path(__file__).resolve().parent
 
 sys.path.insert(0, str(CLI_DIR))
 
-from kubernetes import deploy_to_kubernetes, kubernetes_status
+# from kubernetes import deploy_to_kubernetes, kubernetes_status
+from kubernetes import (
+    deploy_to_kubernetes,
+    kubernetes_status,
+    kubernetes_pod_health,
+    kubernetes_service_health,
+)
 
 TERRAFORM_DIR = PROJECT_ROOT / "terraform"
+ANSIBLE_DIR = PROJECT_ROOT / "ansible"
+INVENTORY_FILE = ANSIBLE_DIR / "inventory.ini"
 
 # from kubernetes import deploy_to_kubernetes, kubernetes_status
 # from cli.kubernetes import deploy_to_kubernetes, kubernetes_status
@@ -195,6 +203,69 @@ def terraform_status():
 
     run_command(["terraform", "output"])
 
+def terraform_output(name):
+    result = subprocess.run(
+        ["terraform", "output", "-raw", name],
+        cwd=TERRAFORM_DIR,
+        text=True,
+        capture_output=True
+    )
+
+    if result.returncode != 0:
+        print("Failed to get Terraform output.")
+        print(result.stderr)
+        sys.exit(result.returncode)
+
+    return result.stdout.strip()
+
+def generate_ansible_inventory():
+    public_ip = terraform_output("instance_public_ip")
+
+    inventory = f"""[platform]
+demo-app ansible_host={public_ip} ansible_user=ec2-user ansible_ssh_private_key_file=/home/tasrikan/.ssh/platform-lab
+"""
+
+    ANSIBLE_DIR.mkdir(exist_ok=True)
+
+    with open(INVENTORY_FILE, "w") as file:
+        file.write(inventory)
+
+    print()
+    print("Ansible inventory generated:")
+    print(INVENTORY_FILE)
+    print()
+    print(inventory)
+
+def run_ansible(playbook):
+    playbook_file = ANSIBLE_DIR / playbook
+
+    wsl_inventory = "/mnt/c/Users/tasrikan/platform-lab/ansible/inventory.ini"
+    wsl_playbook = f"/mnt/c/Users/tasrikan/platform-lab/ansible/{playbook_file.name}"
+
+    print()
+    print(f"Running Ansible playbook: {playbook}")
+    print()
+
+    command = [
+        "wsl",
+        "-d",
+        "Ubuntu",
+        "--",
+        "ansible-playbook",
+        "-i",
+        wsl_inventory,
+        wsl_playbook,
+    ]
+
+    result = subprocess.run(
+        command,
+        cwd=PROJECT_ROOT
+    )
+
+    if result.returncode != 0:
+        print()
+        print("Ansible deployment failed.")
+        sys.exit(result.returncode)
 
 def execute(command, config):
     validate_config(config)
@@ -229,27 +300,65 @@ def execute(command, config):
         print("======================================")
 
         print()
-        print("[1/4] Provisioning infrastructure...")
+        print("[1/6] Provisioning infrastructure...")
         terraform_apply(config)
 
         print()
-        print("[2/4] Generating Kubernetes manifests...")
+        print("[2/6] Generating Ansible inventory...")
+        generate_ansible_inventory()
 
+        print()
+        print("[3/6] Configuring EC2 with Ansible...")
+        run_ansible("playbook.yml")
+
+        print()
+        print("[4/6] Generating Kubernetes manifests...")
         print("Kubernetes manifests will be generated during deployment.")
 
         print()
-        print("[3/4] Deploying application...")
+        print("[5/6] Deploying application to Kubernetes...")
         deploy_to_kubernetes(config)
 
         print()
-        print("[4/4] Verifying deployment...")
+        print("[6/6] Verifying Kubernetes deployment...")
         kubernetes_status(config)
 
         print()
+        print("Checking pod health...")
+
+        if not kubernetes_pod_health(config):
+            print()
+            print("======================================")
+            print("        DEPLOYMENT FAILED")
+            print("======================================")
+            sys.exit(1)
+
+        print()
+        print("Pod health: PASSED")
+
+        print()
+        print("Checking service health...")
+
+        if not kubernetes_service_health(config):
+            print()
+            print("======================================")
+            print("        DEPLOYMENT FAILED")
+            print("======================================")
+            sys.exit(1)
+
+        print()
+        print("Service health: PASSED")
+
+        print()
         print("======================================")
-        print("       DEPLOYMENT COMPLETED")
+        print("       DEPLOYMENT SUCCESSFUL")
         print("======================================")
 
+    
+    elif command == "k8s-status":
+        kubernetes_status(config)
+
+        
     elif command == "deploy":
         terraform_init()
 
@@ -263,19 +372,52 @@ def execute(command, config):
         print("======================================")
 
         print()
-        print("[1/4] Provisioning infrastructure...")
+        print("[1/6] Provisioning infrastructure...")
         terraform_apply(config)
 
         print()
-        print("[2/4] Deploying application...")
+        print("[2/6] Generating Ansible inventory...")
+        generate_ansible_inventory()
+
+        print()
+        print("[3/6] Configuring EC2 with Ansible...")
+        run_ansible("playbook.yml")
+
+        print()
+        print("[4/6] Generating Kubernetes manifests...")
+        print("Kubernetes manifests will be generated during deployment.")
+
+        print()
+        print("[5/6] Deploying application to Kubernetes...")
         deploy_to_kubernetes(config)
 
         print()
-        print("[3/4] Verifying Kubernetes deployment...")
+        print("[6/6] Verifying Kubernetes deployment...")
         kubernetes_status(config)
 
         print()
-        print("[4/4] Deployment completed.")
+        print("Checking pod health...")
+
+        if not kubernetes_pod_health(config):
+            print()
+            print("======================================")
+            print("        DEPLOYMENT FAILED")
+            print("======================================")
+            sys.exit(1)
+
+        print("Pod health: PASSED")
+
+        print()
+        print("Checking service health...")
+
+        if not kubernetes_service_health(config):
+            print()
+            print("======================================")
+            print("        DEPLOYMENT FAILED")
+            print("======================================")
+            sys.exit(1)
+
+        print("Service health: PASSED")
 
         print()
         print("======================================")
