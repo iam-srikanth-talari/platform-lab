@@ -36,6 +36,10 @@ jobs:
         run: |
           pytest
 
+      - name: Validate platform configuration
+        run: |
+          python cli/platform.py validate config/app.yaml --env dev
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
