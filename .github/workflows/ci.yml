@@ -54,3 +54,14 @@ jobs:
       - name: Terraform Validate
         working-directory: terraform
         run: terraform validate
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Validate Kubernetes manifests
+        run: |
+          kubectl apply --dry-run=client -f kubernetes/deployment.yaml
+          kubectl apply --dry-run=client -f kubernetes/service.yaml
+          kubectl apply --dry-run=client -f kubernetes/secret.yaml
