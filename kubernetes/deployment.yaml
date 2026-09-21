@@ -19,7 +19,9 @@ spec:
     spec:
       containers:
         - name: demo-app
-          image: talarisrikanth464/python-sample-app-demo:v1
+          # image: talarisrikanth464/python-sample-app-demo:v1
+          image: platform-lab-app:dev
+          imagePullPolicy: Never
 
           ports:
             - containerPort: 8000

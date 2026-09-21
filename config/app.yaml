@@ -12,4 +12,5 @@ kubernetes:
   port: 8000
 
 deployment:
-  image: talarisrikanth464/python-sample-app-demo:v1
+  # image: talarisrikanth464/python-sample-app-demo:v1
+  image: platform-lab-app:dev

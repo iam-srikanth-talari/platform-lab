@@ -72,3 +72,7 @@ jobs:
                   yaml.safe_load(f)
               print(f"Valid YAML: {file}")
           PY
+
+      - name: Build Docker image
+        run: |
+          docker build -t platform-lab-app:${{ github.sha }} ./app

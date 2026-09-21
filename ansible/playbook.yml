@@ -5,7 +5,7 @@
 
   vars:
     app_name: demo-app
-    app_image: talarisrikanth464/python-sample-app-demo:v1
+    app_image: platform-lab-app:dev
     app_port: 8000
 
   tasks:
