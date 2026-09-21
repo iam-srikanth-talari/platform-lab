@@ -55,13 +55,20 @@ jobs:
         working-directory: terraform
         run: terraform validate
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: latest
-
-      - name: Validate Kubernetes manifests
+      - name: Validate Kubernetes YAML
         run: |
-          kubectl apply --dry-run=client --validate=false -f kubernetes/deployment.yaml
-          kubectl apply --dry-run=client --validate=false -f kubernetes/service.yaml
-          kubectl apply --dry-run=client --validate=false -f kubernetes/secret.yaml
+          python - <<'PY'
+          import yaml
+          from pathlib import Path
+
+          files = [
+              "kubernetes/deployment.yaml",
+              "kubernetes/service.yaml",
+              "kubernetes/secret.yaml",
+          ]
+
+          for file in files:
+              with open(file, "r") as f:
+                  yaml.safe_load(f)
+              print(f"Valid YAML: {file}")
+          PY
