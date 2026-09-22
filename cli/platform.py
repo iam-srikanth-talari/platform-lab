@@ -237,15 +237,13 @@ demo-app ansible_host={public_ip} ansible_user=ec2-user ansible_ssh_private_key_
     print()
     print(inventory)
 
-def run_ansible(playbook):
+def run_ansible(playbook, config):
     playbook_file = ANSIBLE_DIR / playbook
 
     wsl_inventory = "/mnt/c/Users/tasrikan/platform-lab/ansible/inventory.ini"
     wsl_playbook = f"/mnt/c/Users/tasrikan/platform-lab/ansible/{playbook_file.name}"
 
-    print()
-    print(f"Running Ansible playbook: {playbook}")
-    print()
+    app_image = config["deployment"]["image"]
 
     command = [
         "wsl",
@@ -256,17 +254,14 @@ def run_ansible(playbook):
         "-i",
         wsl_inventory,
         wsl_playbook,
+        "-e",
+        f"platform_image={app_image}",
     ]
 
-    result = subprocess.run(
-        command,
-        cwd=PROJECT_ROOT
-    )
+    result = subprocess.run(command, cwd=PROJECT_ROOT)
 
     if result.returncode != 0:
-        print()
-        print("Ansible deployment failed.")
-        sys.exit(result.returncode)
+        raise RuntimeError("Ansible execution failed")
 
 def execute(command, config):
     validate_config(config)
@@ -310,7 +305,7 @@ def execute(command, config):
 
         print()
         print("[3/6] Configuring EC2 with Ansible...")
-        run_ansible("playbook.yml")
+        run_ansible("playbook.yml", config)
 
         print()
         print("[4/6] Generating Kubernetes manifests...")

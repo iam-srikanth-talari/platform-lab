@@ -5,7 +5,7 @@
 
   vars:
     app_name: demo-app
-    app_image: platform-lab-app:dev
+    app_image: "{{ platform_image }}"
     app_port: 8000
 
   tasks:

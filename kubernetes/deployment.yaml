@@ -20,8 +20,10 @@ spec:
       containers:
         - name: demo-app
           # image: talarisrikanth464/python-sample-app-demo:v1
-          image: platform-lab-app:dev
-          imagePullPolicy: Never
+          # image: platform-lab-app:dev
+          # imagePullPolicy: Never
+          image: ghcr.io/iam-srikanth-talari/platform-lab-app:aec95d942435e84fdea586205d11526dfe481faf
+          imagePullPolicy: Always
 
           ports:
             - containerPort: 8000

@@ -7,7 +7,6 @@ import json
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 KUBERNETES_DIR = PROJECT_ROOT / "kubernetes"
 
-
 def generate_manifests(config):
     app = config["application"]
     k8s = config["kubernetes"]
@@ -40,9 +39,23 @@ spec:
       containers:
         - name: {app_name}
           image: {image}
+          imagePullPolicy: Always
 
           ports:
             - containerPort: {port}
+
+          envFrom:
+            - secretRef:
+                name: {app_name}-secret
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
 """
 
     service_yaml = f"""apiVersion: v1
@@ -83,6 +96,13 @@ def deploy_to_kubernetes(config):
 
     print()
     print("Deploying application to Kubernetes...")
+
+    secret_file = KUBERNETES_DIR / "secret.yaml"
+
+    subprocess.run(
+        ["kubectl", "apply", "-f", str(secret_file)],
+        check=True
+    )
 
     subprocess.run(
         ["kubectl", "apply", "-f", str(deployment_file)],
