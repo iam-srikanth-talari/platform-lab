@@ -203,7 +203,7 @@ jobs:
               "sudo docker rm -f demo-app || true",
               "sudo docker run -d --name demo-app --restart unless-stopped -p 8000:8000 ${IMAGE}",
               "sudo docker ps",
-              "for i in $(seq 1 12); do if curl -fsS http://localhost:8000/health; then exit 0; fi; sleep 2; done; exit 1"
+              "for i in {1..12}; do if curl -fsS http://localhost:8000/health; then exit 0; fi; sleep 2; done; exit 1"
             ]
           }
           EOF
