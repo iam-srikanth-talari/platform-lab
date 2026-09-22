@@ -121,6 +121,8 @@ jobs:
   publish:
     name: Publish Container Image
     runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.image }}
 
     needs:
       - validate
@@ -145,14 +147,22 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
 
+      - name: Set image name
+        id: image
+        run: |
+          echo "image=ghcr.io/${{ github.repository_owner }}/platform-lab-app:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
       - name: Build Docker image
         run: |
           docker build \
             -t ghcr.io/${{ github.repository_owner }}/platform-lab-app:${{ github.sha }} \
             ./app
 
-
       - name: Push Docker image
         run: |
           docker push \
             ghcr.io/${{ github.repository_owner }}/platform-lab-app:${{ github.sha }}
+
+      - name: Display published image
+        run: |
+          echo "Published image: ${{ steps.image.outputs.image }}"
