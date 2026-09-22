@@ -48,8 +48,17 @@ resource "aws_instance" "platform_instance" {
 
   key_name = aws_key_pair.platform_key.key_name
 
+  iam_instance_profile = aws_iam_instance_profile.platform_ssm_profile.name
+
+  user_data = <<-EOF
+              #!/bin/bash
+              dnf install -y amazon-ssm-agent
+              systemctl enable amazon-ssm-agent
+              systemctl start amazon-ssm-agent
+              EOF
+
   root_block_device {
-    volume_size = 10
+    volume_size = 30
     volume_type = "gp3"
   }
 
@@ -59,6 +68,38 @@ resource "aws_instance" "platform_instance" {
     ManagedBy   = "platform-lab"
   }
 }
+
+
+resource "aws_iam_role" "platform_ssm_role" {
+  name = "${var.application_name}-${var.environment}-ssm-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "platform_ssm_policy" {
+  role       = aws_iam_role.platform_ssm_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "platform_ssm_profile" {
+  name = "${var.application_name}-${var.environment}-ssm-profile"
+  role = aws_iam_role.platform_ssm_role.name
+}
+
 
 data "aws_ami" "amazon_linux" {
   most_recent = true
@@ -133,4 +174,67 @@ resource "aws_security_group" "platform_sg" {
   tags = {
     Name = "${var.application_name}-${var.environment}-sg"
   }
+}
+
+# GitHub Actions OIDC provider
+resource "aws_iam_openid_connect_provider" "github" {
+  url = "https://token.actions.githubusercontent.com"
+
+  client_id_list = [
+    "sts.amazonaws.com"
+  ]
+}
+
+# IAM role assumed by GitHub Actions through OIDC
+resource "aws_iam_role" "github_actions_role" {
+  name = "${var.application_name}-${var.environment}-github-actions-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Principal = {
+          Federated = aws_iam_openid_connect_provider.github.arn
+        }
+
+        Action = "sts:AssumeRoleWithWebIdentity"
+
+        Condition = {
+          StringEquals = {
+            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+          }
+
+          StringLike = {
+            "token.actions.githubusercontent.com:sub" = "repo:iam-srikanth-talari@242778939/platform-lab@1375942854:*"
+          }
+        }
+      }
+    ]
+  })
+}
+
+# Permissions for GitHub Actions to deploy through AWS SSM
+resource "aws_iam_role_policy" "github_actions_ssm" {
+  name = "${var.application_name}-${var.environment}-github-actions-ssm"
+  role = aws_iam_role.github_actions_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "ssm:SendCommand",
+          "ssm:GetCommandInvocation"
+        ]
+
+        Resource = "*"
+      }
+    ]
+  })
 }
