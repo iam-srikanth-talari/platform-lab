@@ -189,9 +189,27 @@ jobs:
           role-to-assume: arn:aws:iam::750708765726:role/demo-app-dev-github-actions-role
           aws-region: ap-south-2
 
+      - name: Discover EC2 instance
+        run: |
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters \
+              "Name=tag:Role,Values=platform-app" \
+              "Name=instance-state-name,Values=running" \
+            --region ap-south-2 \
+            --query "Reservations[0].Instances[0].InstanceId" \
+            --output text)
+
+          if [ "$INSTANCE_ID" = "None" ] || [ -z "$INSTANCE_ID" ]; then
+            echo "No running platform-app instance found"
+            exit 1
+          fi
+
+          echo "INSTANCE_ID=$INSTANCE_ID" >> "$GITHUB_ENV"
+          echo "Discovered EC2 instance: $INSTANCE_ID"
+
       - name: Deploy to EC2 through SSM
         env:
-          INSTANCE_ID: i-0d924610eff1ce3e8
+          # INSTANCE_ID: i-0d924610eff1ce3e8
           IMAGE: ${{ needs.publish.outputs.image }}
         run: |
           cat > commands.json <<EOF
