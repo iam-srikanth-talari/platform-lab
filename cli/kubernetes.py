@@ -43,7 +43,19 @@ spec:
 
           ports:
             - containerPort: {port}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {port}
+            initialDelaySeconds: 5
+            periodSeconds: 5
 
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {port}
+            initialDelaySeconds: 10
+            periodSeconds: 10
           envFrom:
             - secretRef:
                 name: {app_name}-secret
@@ -117,15 +129,40 @@ def deploy_to_kubernetes(config):
     print()
     print("Waiting for deployment rollout...")
 
-    subprocess.run(
-        [
-            "kubectl",
-            "rollout",
-            "status",
-            f"deployment/{app_name}"
-        ],
-        check=True
-    )
+    try:
+        subprocess.run(
+            [
+                "kubectl",
+                "rollout",
+                "status",
+                f"deployment/{app_name}",
+                "--timeout=120s",
+            ],
+            check=True,
+        )
+
+    except subprocess.CalledProcessError:
+        print("\nDeployment rollout failed.")
+        print("Rolling back to previous revision...")
+
+        subprocess.run(
+            ["kubectl", "rollout", "undo", f"deployment/{app_name}"],
+            check=True,
+        )
+
+        subprocess.run(
+            [
+                "kubectl",
+                "rollout",
+                "status",
+                f"deployment/{app_name}",
+                "--timeout=120s",
+            ],
+            check=True,
+        )
+
+        print("Rollback completed successfully.")
+        raise
 
     print()
     print("Kubernetes deployment completed successfully.")
