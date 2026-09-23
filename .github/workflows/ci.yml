@@ -5,6 +5,18 @@ on:
     branches:
       - main
 
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
   pull_request:
     branches:
       - main
@@ -191,7 +203,7 @@ jobs:
 
       - name: Discover EC2 instance
         env:
-          ENVIRONMENT: dev
+          ENVIRONMENT: ${{ inputs.environment || 'dev' }}
         run: |
           INSTANCE_ID=$(aws ec2 describe-instances \
             --filters \
