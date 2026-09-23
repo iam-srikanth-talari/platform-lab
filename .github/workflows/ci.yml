@@ -198,7 +198,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: arn:aws:iam::750708765726:role/demo-app-dev-github-actions-role
+          role-to-assume: arn:aws:iam::750708765726:role/demo-app-${{ inputs.environment || 'dev' }}-github-actions-role
           aws-region: ap-south-2
 
       - name: Discover EC2 instance
