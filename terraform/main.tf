@@ -39,6 +39,7 @@ resource "aws_key_pair" "platform_key" {
   public_key = var.ssh_public_key
 }
 
+
 resource "aws_instance" "platform_instance" {
   ami           = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type
@@ -66,6 +67,7 @@ resource "aws_instance" "platform_instance" {
     Name        = "${var.application_name}-${var.environment}"
     Environment = var.environment
     ManagedBy   = "platform-lab"
+    Role        = "platform-app"
   }
 }
 
@@ -230,11 +232,12 @@ resource "aws_iam_role_policy" "github_actions_ssm" {
 
         Action = [
           "ssm:SendCommand",
-          "ssm:GetCommandInvocation"
+          "ssm:GetCommandInvocation",
+          "ec2:DescribeInstances"
         ]
 
         Resource = "*"
-      }
+      },
     ]
   })
 }

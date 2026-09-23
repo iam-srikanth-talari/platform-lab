@@ -1,6 +1,7 @@
 import sys
 import subprocess
 from pathlib import Path
+from cli.ssm import deploy_with_ssm
 
 import yaml
 
@@ -656,16 +657,22 @@ def deploy_full(config):
 
     print()
     print(
-        "[3/6] Configuring EC2 with Ansible..."
+        "[3/6] Deploying application to EC2 with AWS SSM..."
     )
 
-    generate_ansible_inventory()
-
-    run_ansible(
-        "playbook.yml",
-        config,
+    instance_id = terraform_output(
+        "instance_id"
     )
 
+    region = config["infrastructure"]["region"]
+
+    image = config["deployment"]["image"]
+
+    deploy_with_ssm(
+        instance_id,
+        region,
+        image,
+    )
     # -----------------------------------------------------
     # Stage 4
     # -----------------------------------------------------
@@ -725,6 +732,12 @@ def execute(command, config, image_override=None):
 
     if image_override:
         config["deployment"]["image"] = image_override
+
+    if command == "deploy" and not config["deployment"]["image"]:
+        raise ValueError(
+            "Deployment image is required. "
+            "Use --image <immutable-image>"
+        )
 
     if command == "validate":
         validate_config(config)

@@ -12,7 +12,12 @@ kubernetes:
   port: 8000
 
 deployment:
-  image: ghcr.io/iam-srikanth-talari/platform-lab-app:aec95d942435e84fdea586205d11526dfe481faf
+  image: ""
+
+
+
+
+  # image: ghcr.io/iam-srikanth-talari/platform-lab-app:latest
 
 
 # application:
