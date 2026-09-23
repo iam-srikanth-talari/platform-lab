@@ -391,3 +391,41 @@ def kubernetes_status(config):
     else:
         print()
         print("Status      : UNHEALTHY")
+
+def kubernetes_rollout_history(config):
+    app_name = config["application"]["name"]
+
+    print()
+    print("======================================")
+    print("       DEPLOYMENT HISTORY")
+    print("======================================")
+    print()
+    print(f"Application : {app_name}")
+    print()
+
+    result = subprocess.run(
+        ["kubectl", "rollout", "history", f"deployment/{app_name}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    print(result.stdout)
+
+    revision_result = subprocess.run(
+        [
+            "kubectl",
+            "get",
+            "deployment",
+            app_name,
+            "-o",
+            "jsonpath={.metadata.annotations.deployment\\.kubernetes\\.io/revision}",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    current_revision = revision_result.stdout.strip()
+
+    print(f"Current revision : {current_revision}")

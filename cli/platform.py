@@ -27,6 +27,7 @@ from kubernetes import (
     kubernetes_status,
     kubernetes_pod_health,
     kubernetes_service_health,
+    kubernetes_rollout_history,
 )
 
 
@@ -863,6 +864,9 @@ def execute(command, config, image_override=None):
     elif command == "k8s-status":
 
         kubernetes_status(config)
+
+    elif command == "history":
+        kubernetes_rollout_history(config)
 
     # -----------------------------------------------------
     # Full deployment
