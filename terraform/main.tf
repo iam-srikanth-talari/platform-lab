@@ -178,13 +178,11 @@ resource "aws_security_group" "platform_sg" {
   }
 }
 
-# GitHub Actions OIDC provider
-resource "aws_iam_openid_connect_provider" "github" {
+# Shared GitHub Actions OIDC provider
+# The provider is account-level and already exists in AWS.
+# Terraform reads it instead of creating one per environment.
+data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
-
-  client_id_list = [
-    "sts.amazonaws.com"
-  ]
 }
 
 # IAM role assumed by GitHub Actions through OIDC
@@ -199,7 +197,7 @@ resource "aws_iam_role" "github_actions_role" {
         Effect = "Allow"
 
         Principal = {
-          Federated = aws_iam_openid_connect_provider.github.arn
+          Federated = data.aws_iam_openid_connect_provider.github.arn
         }
 
         Action = "sts:AssumeRoleWithWebIdentity"
