@@ -22,6 +22,10 @@ kind: Deployment
 
 metadata:
   name: {app_name}
+  annotations:
+    kubernetes.io/change-cause: "Deploy image {image.split(':')[-1][:8]}"
+spec:
+  replicas: {replicas}
 
 spec:
   replicas: {replicas}
@@ -95,6 +99,8 @@ spec:
     service_file.write_text(service_yaml)
 
     return deployment_file, service_file
+
+
 
 def deploy_to_kubernetes(config):
     deployment_file, service_file = generate_manifests(config)
@@ -365,7 +371,7 @@ def kubernetes_status(config):
             "deployment",
             app_name,
             "-o",
-            "jsonpath={.spec.replicas},{.status.readyReplicas},{.status.availableReplicas}"
+            "jsonpath={.spec.replicas},{.status.updatedReplicas},{.status.readyReplicas},{.status.availableReplicas},{.status.unavailableReplicas},{.spec.template.spec.containers[0].image},{.metadata.annotations.deployment\\.kubernetes\\.io/revision}"
         ],
         capture_output=True,
         text=True
@@ -377,17 +383,29 @@ def kubernetes_status(config):
 
     values = result.stdout.strip().split(",")
 
-    replicas = int(values[0])
-    ready = int(values[1] or 0)
-    available = int(values[2] or 0)
+    replicas = int(values[0] or 0)
+    updated = int(values[1] or 0)
+    ready = int(values[2] or 0)
+    available = int(values[3] or 0)
+    unavailable = int(values[4] or 0)
+    image = values[5]
+    revision = values[6]
 
     print(f"Replicas    : {replicas}")
+    print(f"Updated     : {updated}")
     print(f"Ready       : {ready}")
     print(f"Available   : {available}")
+    print(f"Image       : {image}")
+    print(f"Revision    : {revision}")
 
-    if ready == replicas and available == replicas:
+    if ready == replicas and available == replicas and updated == replicas:
         print()
         print("Status      : HEALTHY")
+
+    elif updated < replicas:
+        print()
+        print("Status      : ROLLING OUT")
+
     else:
         print()
         print("Status      : UNHEALTHY")
