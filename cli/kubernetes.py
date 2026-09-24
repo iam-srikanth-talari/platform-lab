@@ -1,6 +1,5 @@
 from pathlib import Path
 import subprocess
-import yaml
 import json
 
 
@@ -26,10 +25,6 @@ metadata:
     kubernetes.io/change-cause: "Deploy image {image.split(':')[-1][:8]}"
 spec:
   replicas: {replicas}
-
-spec:
-  replicas: {replicas}
-
   strategy:
     type: RollingUpdate
     rollingUpdate:

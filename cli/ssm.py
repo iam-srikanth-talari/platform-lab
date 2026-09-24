@@ -127,6 +127,8 @@ def wait_for_command(
 
 def deploy_with_ssm(instance_id, region, image):
     """Deploy application to EC2 through AWS SSM."""
+    if not image or ":" not in image:
+        raise ValueError("A valid container image with a tag is required.")
 
     commands = [
         "sudo dnf install -y docker",

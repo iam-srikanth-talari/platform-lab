@@ -2,7 +2,7 @@
 
 A hands-on Platform Engineering lab that demonstrates how an internal deployment workflow can automate application validation, infrastructure provisioning, container publishing, deployment, health verification, rollback, and monitoring.
 
-The project is designed to demonstrate practical Platform Engineering concepts using Python, Terraform, Docker, Kubernetes, GitHub Actions, AWS, SSM, Prometheus, and Grafana.
+The project demonstrates practical Platform Engineering concepts using Python, Terraform, Docker, Kubernetes, GitHub Actions, AWS, AWS Systems Manager (SSM), Prometheus, and Grafana.
 
 > **Scope:** This is a personal hands-on lab project. AWS deployment is implemented for learning and validation; it is not presented as production experience.
 
@@ -21,66 +21,75 @@ The project is designed to demonstrate practical Platform Engineering concepts u
                              v
                     +------------------+
                     | GitHub Actions   |
-                    | CI/CD Pipeline   |
+                    |    CI/CD         |
                     +--------+---------+
                              |
               +--------------+--------------+
-              |                             |
-              v                             v
-       Python Tests                  Docker Build
-       Terraform Validate                  |
-       K8s YAML Validate                   v
-              |                    +---------------+
-              |                    |     GHCR      |
-              |                    | Container Reg.|
-              |                    +-------+-------+
-              |                            |
-              +----------------------------+
-                                           |
-                                           v
-                                  AWS OIDC Authentication
-                                           |
-                                           v
-                                    AWS SSM Command
-                                           |
-                                           v
-                                    AWS EC2 Instance
-                                           |
-                                           v
-                                      Docker App
-                                           |
-                                      /health
-                                           |
-                                           v
-                                  Deployment Verification
+              |              |              |
+              v              v              v
+        Python Tests   Terraform Validate  Docker Build
+              |              |              |
+              |              |              v
+              |              |       +---------------+
+              |              |       |      GHCR     |
+              |              |       | Container Reg.|
+              |              |       +-------+-------+
+              |              |               |
+              +--------------+---------------+
+                                             |
+                                             v
+                                    GitHub OIDC Token
+                                             |
+                                             v
+                                      +-------------+
+                                      |   AWS IAM   |
+                                      | Deployment  |
+                                      |    Role     |
+                                      +------+------+
+                                             |
+                                             v
+                                      AWS SSM Command
+                                             |
+                                             v
+                                      AWS EC2 Instance
+                                             |
+                                             v
+                                        Docker App
+                                             |
+                                             v
+                                      /health check
+                                             |
+                                             v
+                                   Deployment Verification
 
 
               Local Kubernetes / Minikube
                          |
                          v
-                  Kubernetes Deployment
+                Kubernetes Deployment
                          |
               +----------+----------+
               |                     |
               v                     v
-          Readiness             Liveness
-           Probe                  Probe
+       Readiness Probe       Liveness Probe
               |                     |
               +----------+----------+
                          |
                          v
-                    App /health
+                      /health
 
 
-              Monitoring
-                  |
-        +---------+----------+
-        |                    |
-        v                    v
-    Prometheus           cAdvisor
-        |
-        v
-     Grafana
+                     Monitoring
+                         |
+              +----------+----------+
+              |                     |
+              v                     v
+         Prometheus             cAdvisor
+              |                     |
+              +----------+----------+
+                         |
+                         v
+                      Grafana
 ```
 
 For a more detailed architecture and deployment flow, see [`docs/architecture.md`](docs/architecture.md).
@@ -97,9 +106,13 @@ Examples:
 
 ```powershell
 python cli/platform.py validate config/app.yaml --env dev
+
 python cli/platform.py plan config/app.yaml --env dev
+
 python cli/platform.py k8s config/app.yaml --env dev --image <IMAGE>
+
 python cli/platform.py k8s-status config/app.yaml --env dev
+
 python cli/platform.py history config/app.yaml --env dev
 ```
 
@@ -157,7 +170,7 @@ GET /metrics
 
 `/health` is used by deployment health checks and Kubernetes probes.
 
-`/metrics` exposes Prometheus metrics.
+`/metrics` exposes Prometheus-compatible application metrics.
 
 ---
 
@@ -178,6 +191,8 @@ ghcr.io/iam-srikanth-talari/platform-lab-app:<commit-sha>
 ```
 
 Using the commit SHA makes the deployed application version traceable to a specific source-code revision.
+
+This provides a simple immutable-versioning model for deployments.
 
 ---
 
@@ -210,7 +225,7 @@ Docker build
 Publish image to GHCR
    |
    v
-AWS authentication using OIDC
+Authenticate to AWS using OIDC
    |
    v
 Discover EC2
@@ -223,6 +238,14 @@ Application health check
 ```
 
 The validation stage runs before the container image is published.
+
+The workflow also supports manual environment selection for:
+
+```text
+dev
+staging
+prod
+```
 
 ---
 
@@ -238,13 +261,15 @@ demo-app-staging-github-actions-role
 demo-app-prod-github-actions-role
 ```
 
-This provides a short-lived authentication model for CI/CD.
+The workflow obtains short-lived AWS credentials through the configured IAM role.
+
+This avoids storing long-lived AWS access keys in the GitHub repository.
 
 ---
 
 ## 7. AWS Systems Manager
 
-The deployment workflow uses AWS Systems Manager Run Command instead of SSH.
+The deployment workflow uses AWS Systems Manager Run Command instead of SSH for CI/CD deployment.
 
 The workflow:
 
@@ -255,7 +280,9 @@ The workflow:
 5. Checks the `/health` endpoint.
 6. Reports deployment success or failure.
 
-This removes the need for SSH keys in the CI/CD workflow.
+This keeps SSH out of the CI/CD deployment path.
+
+The repository still contains an Ansible-based configuration path for manual/secondary use.
 
 ---
 
@@ -284,7 +311,7 @@ strategy:
     maxSurge: 1
 ```
 
-This allows new pods to become available before old pods are removed.
+This configuration allows new pods to become ready before old pods are removed.
 
 ---
 
@@ -311,6 +338,8 @@ The application also exposes:
 
 which is used by Kubernetes readiness and liveness probes.
 
+The EC2 deployment workflow also calls the same endpoint after starting the Docker container.
+
 ---
 
 ## 10. Deployment Rollback
@@ -326,14 +355,17 @@ New deployment
 Rolling update
       |
       v
-Health check
+Health checks
       |
    +--+--+
    |     |
-Healthy  Failed
+Healthy Failed
    |     |
    v     v
-Done   Rollback
+ Done  Rollback
+         |
+         v
+   Previous revision
 ```
 
 A failed rollout can be reverted using Kubernetes rollout history and rollback mechanisms.
@@ -344,6 +376,8 @@ Deployment history can be inspected with:
 python cli/platform.py history config/app.yaml --env dev
 ```
 
+The rollback workflow was also tested by introducing an unhealthy probe configuration, allowing the rollout to fail, and then reverting to the previous healthy revision.
+
 ---
 
 ## 11. Monitoring
@@ -353,10 +387,10 @@ The project includes a local monitoring stack:
 ```text
 Demo Application
       |
-      +----> Prometheus metrics
+      +----> /metrics
       |
       v
-   Prometheus
+ Prometheus
       |
       +----> Grafana
       |
@@ -369,7 +403,7 @@ Grafana provides dashboards for:
 
 * Request rate
 * Health requests
-* Application scrape status
+* Prometheus scrape status
 * CPU usage
 * Memory usage
 * Running containers
@@ -379,6 +413,8 @@ The Flask application exposes Prometheus-compatible metrics through:
 ```text
 /metrics
 ```
+
+The Prometheus `up` metric represents whether Prometheus can successfully scrape the configured target. It is distinct from the application's `/health` endpoint.
 
 ---
 
@@ -391,7 +427,7 @@ Current test coverage includes:
 * Configuration validation
 * Kubernetes Deployment generation
 * Kubernetes Service generation
-* Rolling-out deployment status
+* Healthy deployment status
 * Unhealthy deployment status
 
 Run:
@@ -405,6 +441,8 @@ Current project test result:
 ```text
 6 passed
 ```
+
+The CI workflow also executes the test suite as part of platform validation.
 
 ---
 
@@ -502,19 +540,22 @@ This lab focuses on practical Platform Engineering concepts:
 * Immutable container versions
 * CI/CD automation
 * Short-lived cloud authentication
-* SSH-less deployment
+* SSH-less CI/CD deployment
 * Kubernetes rolling updates
 * Health checks
 * Deployment rollback
 * Automated validation
 * Observability
 * Infrastructure and application automation
+* Configuration-driven deployments
 
 ---
 
 ## Production Improvements
 
-The current project is intentionally a lab implementation. A production platform would require additional capabilities such as:
+The current project is intentionally a lab implementation.
+
+A production platform would require additional capabilities such as:
 
 * Remote Terraform state with locking
 * EKS or another managed Kubernetes platform
@@ -587,4 +628,12 @@ Implemented and validated:
 * Architecture documentation
 * Interview documentation
 
-AWS resources are currently destroyed when not actively being tested to avoid unnecessary Free Tier consumption.
+AWS resources are intended to be destroyed when not actively being tested to avoid unnecessary Free Tier consumption.
+
+---
+
+## Project Positioning
+
+This project is a personal hands-on Platform Engineering lab created to demonstrate practical understanding of infrastructure automation, CI/CD, containers, Kubernetes, cloud authentication, remote deployment, health checks, rollback, and observability.
+
+It should be presented as **hands-on project experience**, not as production experience.

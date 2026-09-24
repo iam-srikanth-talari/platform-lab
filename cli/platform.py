@@ -929,6 +929,9 @@ def execute(command, config, image_override=None):
             "  k8s-status  Show Kubernetes status"
         )
         print(
+            "  history     Show Kubernetes rollout history"
+        )
+        print(
             "  destroy     Destroy AWS infrastructure"
         )
 
@@ -1014,8 +1017,6 @@ def main():
         print(
             "  destroy"
         )
-
-        sys.exit(1)
 
     command = sys.argv[1]
     config_file = sys.argv[2]
