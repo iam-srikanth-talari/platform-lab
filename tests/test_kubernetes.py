@@ -51,6 +51,9 @@ def test_generated_deployment():
     )
     # assert deployment["spec"]["replicas"] == 3
     assert deployment["spec"]["replicas"] == config["kubernetes"]["replicas"]
+    assert deployment["spec"]["strategy"]["type"] == "RollingUpdate"
+    assert deployment["spec"]["strategy"]["rollingUpdate"]["maxUnavailable"] == 0
+    assert deployment["spec"]["strategy"]["rollingUpdate"]["maxSurge"] == 1
 
 
 def test_generated_service():

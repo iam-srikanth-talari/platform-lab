@@ -30,6 +30,12 @@ spec:
 spec:
   replicas: {replicas}
 
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
   selector:
     matchLabels:
       app: {app_name}
