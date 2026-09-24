@@ -21,3 +21,4 @@ terraform/terraform.tfvars
 terraform/*.tfvars
 terraform/*.tfvars.json
 ansible/inventory.ini
+.pytest_cache/
