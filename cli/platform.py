@@ -968,6 +968,7 @@ def main():
         print("  create")
         print("  status")
         print("  k8s-status")
+        print("  history")
         print("  destroy")
 
         sys.exit(1)
